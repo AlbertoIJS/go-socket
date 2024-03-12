@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
+	"os"
+	"os/exec"
+	"strings"
 )
 
 func main() {
@@ -12,13 +16,42 @@ func main() {
 		fmt.Println("Error ", err)
 		return
 	}
+	defer conn.Close()
 
-	// Send some data to the server
-	_, err = conn.Write([]byte("Hello, server!"))
-	if err != nil {
-		fmt.Println("Error ", err)
-		return
+	// Get input from console
+	reader := bufio.NewReader(os.Stdin)
+	// Read line each time the users presses enter
+	for {
+		line, _ := reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+
+		switch line {
+		case "quit":
+			break
+		case "list local":
+			output, err := exec.Command("tree", ".").Output()
+			if err != nil {
+				fmt.Println("Error listing local files: ", err)
+				return
+			}
+			fmt.Println(string(output))
+		default:
+			// Send input to the server
+			_, err = conn.Write([]byte(line))
+			if err != nil {
+				fmt.Println("Error ", err)
+				return
+			}
+
+			// Read response from the server
+			buffer := make([]byte, 1024)
+			n, err := conn.Read(buffer)
+			if err != nil {
+				fmt.Println("Error reading data from the server: ", err)
+				return
+			}
+
+			fmt.Println(string(buffer[:n]))
+		}
 	}
-
-	conn.Close()
 }

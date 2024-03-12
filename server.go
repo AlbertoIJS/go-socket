@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"os/exec"
 )
 
 func main() {
@@ -31,16 +32,29 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	//	Handle connection logic
-	fmt.Println("Accepted connection from", conn.RemoteAddr())
+	fmt.Println("Accepted connection from:", conn.RemoteAddr())
 
 	//	Read incoming data
 	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if err != nil {
-		fmt.Println("Error reading: ", err)
-		return
-	}
+	for {
+		n, err := conn.Read(buffer)
+		line := string(buffer[:n])
+		if err != nil {
+			fmt.Println("Error reading data: ", err)
+		}
+		if line == "list remote" {
+			output, err := exec.Command("tree", "remote").Output()
+			if err != nil {
+				fmt.Println("Error executing command: ", err)
+				return
+			}
 
-	//	Print the incoming data
-	fmt.Printf("Received data: %s\n", string(buffer[:n]))
+			// Send result to client
+			_, err = conn.Write(output)
+			if err != nil {
+				fmt.Println("Error sending to client: ", err)
+				return
+			}
+		}
+	}
 }
