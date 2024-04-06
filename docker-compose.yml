@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  go-socket:
+    build:
+      context: .
+    container_name: socket-server
+    hostname: socket-server
+    ports:
+      - 80:8080
+    volumes:
+      - vol:/app
+
+volumes:
+  vol:
