@@ -74,7 +74,16 @@ func consoleMenu(line string) ([]byte, error) {
 	case "mkdir":
 		return exec.Command("mkdir", arr[1]).Output()
 	case "rmdir":
-		return exec.Command("rm -rf", arr[2]).Output()
+		fileInfo, err := os.Stat(arr[1])
+		if err != nil {
+			return []byte("Error al obtener información sobre el archivo o carpeta."), err
+		}
+		if fileInfo.IsDir() {
+			return exec.Command("rm", "-rf", arr[1]).Output()
+		} else {
+			return exec.Command("rm", arr[1]).Output()
+		}
+
 	default:
 		return []byte("Comando desconocido."), nil
 	}
