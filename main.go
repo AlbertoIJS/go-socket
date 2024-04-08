@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -47,17 +49,22 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
-		res, err := menu(line)
-
-		_, err = conn.Write(res)
-		if err != nil {
-			fmt.Println("Error sending to client: ", err)
-			return
+		command := strings.Split(line, " ")[0]
+		if command == "get" || command == "put" {
+			filesMenu(conn, line)
+		} else {
+			res, err := consoleMenu(line)
+			if err != nil {
+				fmt.Println("Error sending to client: ", err)
+				return
+			}
+			_, err = conn.Write(res)
 		}
+
 	}
 }
 
-func menu(line string) ([]byte, error) {
+func consoleMenu(line string) ([]byte, error) {
 	arr := strings.Split(line, " ")
 	command := arr[0]
 
@@ -69,6 +76,41 @@ func menu(line string) ([]byte, error) {
 	case "rmdir":
 		return exec.Command("rm -rf", arr[2]).Output()
 	default:
-		return []byte("Unknown command"), nil
+		return []byte("Comando desconocido."), nil
+	}
+}
+
+func filesMenu(conn net.Conn, line string) {
+	arr := strings.Split(line, " ")
+	command := arr[0]
+
+	switch command {
+	case "get":
+		file, err := os.Open(arr[1])
+		if err != nil {
+			fmt.Println("Error al abrir el archivo: ", err)
+			return
+		}
+		defer file.Close()
+
+		_, err = io.Copy(conn, file)
+		if err != nil {
+			fmt.Println("Error al copiar el archivo: ", err)
+			return
+		}
+	case "put":
+		file, err := os.Create(arr[1])
+
+		if err != nil {
+			fmt.Println("Error al abrir el archivo: ", err)
+			return
+		}
+		defer file.Close()
+
+		_, err = io.Copy(file, conn)
+		if err != nil {
+			fmt.Println("Error al copiar el archivo: ", err)
+			return
+		}
 	}
 }
