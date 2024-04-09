@@ -46,33 +46,27 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
-		command := strings.Split(line, " ")[0]
-		if command == "quit" {
-			conn.Close()
+		res, err := Menu(conn, line)
+		if err != nil {
+			fmt.Println("Error executing the command: ", err)
 			return
-		} else if command == "get" || command == "put" {
-			filesMenu(conn, line)
-		} else {
-			res, err := consoleMenu(line)
-			if err != nil {
-				fmt.Println("Error executing the command: ", err)
-				return
-			}
-			_, err = conn.Write(res)
-			if err != nil {
-				fmt.Println("Error writing to client: ", err)
-				return
-			}
+		}
+		_, err = conn.Write(res)
+		if err != nil {
+			fmt.Println("Error writing to client: ", err)
+			return
 		}
 	}
 
 }
 
-func consoleMenu(line string) ([]byte, error) {
+func Menu(conn net.Conn, line string) ([]byte, error) {
 	arr := strings.Split(line, " ")
 	command := arr[0]
 
 	switch command {
+	case "quit":
+		conn.Close()
 	case "list":
 		return exec.Command("ls", "-a").Output()
 	case "mkdir":
@@ -87,42 +81,33 @@ func consoleMenu(line string) ([]byte, error) {
 		} else {
 			return []byte("Archivo eliminado correctamente."), exec.Command("rm", arr[1]).Run()
 		}
-	default:
-		return []byte(""), nil
-	}
-}
-
-func filesMenu(conn net.Conn, line string) {
-	arr := strings.Split(line, " ")
-	command := arr[0]
-
-	switch command {
 	case "get":
 		file, err := os.Open(arr[1])
 		if err != nil {
-			fmt.Println("Error al abrir el archivo: ", err)
-			return
+			return []byte("Error al abrir el archivo: "), err
+
 		}
 		defer file.Close()
 
 		_, err = io.Copy(conn, file)
 		if err != nil {
-			fmt.Println("Error al copiar el archivo: ", err)
-			return
+			return []byte("Error al copiar el archivo: "), err
 		}
+		return []byte("Archivo enviado correctamente"), nil
 	case "put":
 		file, err := os.Create(arr[1])
 
 		if err != nil {
-			fmt.Println("Error al abrir el archivo: ", err)
-			return
+			return []byte("Error al abrir el archivo: "), err
+
 		}
 		defer file.Close()
 
 		_, err = io.Copy(file, conn)
 		if err != nil {
-			fmt.Println("Error al copiar el archivo: ", err)
-			return
+			return []byte("Error al copiar el archivo: "), err
 		}
+		return []byte("Archivo guardado correctamente"), nil
 	}
+	return []byte(""), nil
 }
