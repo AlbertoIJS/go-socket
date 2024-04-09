@@ -18,12 +18,12 @@ func main() {
 	}
 	defer listener.Close()
 
-	// Accept incoming connections and handle them
 	for {
+		// Accept incoming connections and handle them
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection: ", err)
-			continue
+			return
 		}
 		// Handle the connection in a new goroutine
 		go handleConnection(conn)
@@ -31,9 +31,6 @@ func main() {
 }
 
 func handleConnection(conn net.Conn) {
-	// Close the connection when we're done
-	defer conn.Close()
-
 	//	Handle connection logic
 	fmt.Println("Accepted connection from:", conn.RemoteAddr())
 
@@ -50,18 +47,25 @@ func handleConnection(conn net.Conn) {
 		}
 
 		command := strings.Split(line, " ")[0]
-		if command == "get" || command == "put" {
+		if command == "quit" {
+			conn.Close()
+			return
+		} else if command == "get" || command == "put" {
 			filesMenu(conn, line)
 		} else {
 			res, err := consoleMenu(line)
 			if err != nil {
-				fmt.Println("Error sending to client: ", err)
+				fmt.Println("Error executing the command: ", err)
 				return
 			}
 			_, err = conn.Write(res)
+			if err != nil {
+				fmt.Println("Error writing to client: ", err)
+				return
+			}
 		}
-
 	}
+
 }
 
 func consoleMenu(line string) ([]byte, error) {
@@ -72,20 +76,19 @@ func consoleMenu(line string) ([]byte, error) {
 	case "list":
 		return exec.Command("ls", "-a").Output()
 	case "mkdir":
-		return exec.Command("mkdir", arr[1]).Output()
+		return []byte("Directorio creado correctamente"), exec.Command("mkdir", arr[1]).Run()
 	case "rmdir":
 		fileInfo, err := os.Stat(arr[1])
 		if err != nil {
 			return []byte("Error al obtener información sobre el archivo o carpeta."), err
 		}
 		if fileInfo.IsDir() {
-			return exec.Command("rm", "-rf", arr[1]).Output()
+			return []byte("Directorio eliminado correctamente."), exec.Command("rm", "-rf", arr[1]).Run()
 		} else {
-			return exec.Command("rm", arr[1]).Output()
+			return []byte("Archivo eliminado correctamente."), exec.Command("rm", arr[1]).Run()
 		}
-
 	default:
-		return []byte("Comando desconocido."), nil
+		return []byte(""), nil
 	}
 }
 
